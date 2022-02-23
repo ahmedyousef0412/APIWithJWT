@@ -15,6 +15,7 @@ namespace JWT.Controllers
 
         public WeatherForecastController(ILogger<WeatherForecastController> logger)
         {
+           
             _logger = logger;
         }
 
