@@ -16,15 +16,18 @@ namespace JWT.Services
     {
         private readonly UserManager<ApplicationUser> _userManager;
 
+        private readonly RoleManager<IdentityRole> _roleManager;
+
         private readonly JWTMap _jwt;
 
-        public AuthService(UserManager<ApplicationUser> userManager , IOptions<JWTMap> jwt)
+        public AuthService(UserManager<ApplicationUser> userManager , IOptions<JWTMap> jwt , RoleManager<IdentityRole> roleManager)
         {
             _userManager = userManager;
            _jwt = jwt.Value;
+            _roleManager = roleManager;
         }
 
-        public IOptions<JWTMap> Jwt { get; }
+      
 
         public async Task<AuthModel> RegisterAsync(RegisterModel model)
         {
@@ -71,6 +74,67 @@ namespace JWT.Services
             };
         }
 
+        public async Task<AuthModel> GetTokenAsync(TokenRequestModel model)
+        {
+            var authModel = new AuthModel();
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            //check on User and Pasword
+            if (user is null || !await _userManager.CheckPasswordAsync(user, model.Password))
+            {
+                authModel.Message = "Email or Password is incorrect!";
+
+                return authModel;
+            }
+
+
+            var jwtSecurityToken = await CreateJwtToken(user);
+
+            var roleList = await _userManager.GetRolesAsync(user);
+
+            authModel.Token = new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken);
+            authModel.Email = user.Email;
+            authModel.ExpiresOn = jwtSecurityToken.ValidTo;
+            authModel.IsAuthenticated = true;
+            authModel.Roles = roleList.ToList();
+            authModel.UserName = user.UserName;
+
+
+            return authModel;
+
+            
+        }
+
+
+        public async Task<string> AddRoleAsync(AddRoleModel model)
+        {
+            var user = await _userManager.FindByIdAsync(model.UserId);
+
+            if(user is null || ! await _roleManager.RoleExistsAsync(model.Role))
+            {
+                return "Invalid UserId or Role";
+            }
+
+
+
+            if (await _userManager.IsInRoleAsync(user, model.Role))
+            {
+                return "User already assign to this Role.";
+            }
+                
+
+            var result = await _userManager.AddToRoleAsync(user, model.Role);
+
+            return result.Succeeded ? String.Empty :"Something went Wrong";
+            
+
+                
+
+            
+            
+        }
+
 
         private async Task<JwtSecurityToken> CreateJwtToken(ApplicationUser user)
         { 
@@ -99,13 +163,13 @@ namespace JWT.Services
             var singingCredintials = new SigningCredentials(symetricSecurityKey ,SecurityAlgorithms.HmacSha256);
 
             var jwtSecurityToken = new JwtSecurityToken(
-             
                 issuer: _jwt.Issuer,
                 audience: _jwt.Audience,
-                claims: claims, 
-                expires : DateTime.Now.AddDays(_jwt.DurationInDays),
-                signingCredentials: singingCredintials
-             );
+                claims: claims,
+                expires: DateTime.Now.AddDays(_jwt.DurationInDays),
+                signingCredentials: singingCredintials);
+
+
             return jwtSecurityToken;
         }
     }

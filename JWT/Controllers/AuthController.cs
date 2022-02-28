@@ -18,17 +18,56 @@ namespace JWT.Controllers
 
         [HttpPost("Register")]
 
-        public async Task<IActionResult> RegisterAsync([FromBody]RegisterModel model)
+        public async Task<IActionResult> RegisterAsync([FromBody] RegisterModel model)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            var result =await _authService.RegisterAsync(model);
+            var result = await _authService.RegisterAsync(model);
 
             if (!result.IsAuthenticated)
                 return BadRequest(result.Message);
 
-            return Ok(result);
+            //return Ok(result);
+
+
+            //Return Anonymous object
+            return Ok(new { Token = result.Token, ExpireOn = result.ExpiresOn });
+        }
+
+        [HttpPost("Token")]
+
+        public async Task<IActionResult> GetTokenAsync([FromBody] TokenRequestModel model)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _authService.GetTokenAsync(model);
+
+            if (!result.IsAuthenticated)
+                return BadRequest(result.Message);
+
+           // return Ok(result);
+
+
+            //Return Anonymous object
+            return Ok(new { Token = result.Token, ExpireOn = result.ExpiresOn });
+
+        }
+
+        [HttpPost("AddRole")]
+        public async Task<IActionResult> AddRoleAsync([FromBody]AddRoleModel model)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _authService.AddRoleAsync(model);
+
+            if(!string.IsNullOrEmpty(result))
+                return BadRequest(result);
+
+            return Ok(model);
+
         }
     }
 }
